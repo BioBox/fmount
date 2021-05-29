@@ -1,0 +1,74 @@
+#!/bin/bash
+
+# My version of Luke Smith's fmount dmenu script, rewritten to use fzf and
+# jmtpfs instead of dmenu and simple-mtpfs respectively.
+
+# Feel free to customize by editing the vars below
+# FSTAB_ENTRIES can be auto-set by using the following:
+# findmnt --df --fstab | sed -ne '/^\/dev\//s#\(/dev/sd.\).*#\1#p' -- | sort | uniq | tr '\n' '|'
+# which can be piped into egrep, but I don't think it's worth the hassle
+
+# OPTIONS
+FSTAB_ENTRIES=${FSTAB_ENTRIES-"/dev/sda"}
+USBFIND_OPTS=${USBFIND_OPTS:-"/mnt /media -maxdepth 3 -type d"}
+fzf_suffix=" > "
+
+# Get drives
+if [ $(jmtpfs -l | wc -l) -gt 1 ]; then
+    anddrives=$(jmtpfs -l | sed -ne '1~3p' -- 2>/dev/null)
+fi
+usbdrives="$(lsblk -rpo "name,type,size,mountpoint" | grep -v "$FSTAB_ENTRIES" | awk '$2=="part"{printf "%s (%s)\n",$1,$3}')"
+
+getmount() { \
+	[ -z "$chosen" ] && exit 1
+	mp_result="$(find $1 -empty 2>/dev/null | fzf -i --print-query --prompt="Type in mount point: ")"
+	mp_status=$?
+	[ $mp_status -gt 2 ] && exit 1
+	if [ $mp_status -eq 1 ]; then
+		mp=$(head -n 1 - <<< $mp_result)
+		mkdiryn=$(printf "No\\nYes" | fzf -i --prompt="$mp does not exist. Create it?$fzf_suffix")
+		[ "$mkdiryn" = "Yes" ] && (mkdir -p "$mp" || mkdir -p "$mp")
+	else
+		mp=$(tail -n 1 - <<<"$mp_result")
+	fi
+	}
+
+mountusb() { \
+	chosen="$(echo "$usbdrives" | fzf -i --prompt="Mount which drive?$fzf_suffix" | awk '{print $1}')"
+	sudo -A mount "$chosen" 2>/dev/null && echo "USB $chosen mounted." && exit 0
+	alreadymounted=$(lsblk -nrpo "name,type,mountpoint" | awk '$2=="part"&&$3!~/\/boot|\/home$|SWAP/&&length($3)>1{printf "-not \\( -path *%s -prune \\)",$3}')
+	getmount "$USBFIND_OPTS $alreadymounted"
+	partitiontype="$(lsblk -no "fstype" "$chosen")"
+	case "$partitiontype" in
+		"ntfs") sudo mount -o uid=$(id -u),gid=$(id -g),dmask=022,fmask=133 "$chosen" "$mp";;
+		*) sudo mount -o uid=$(id -u),gid=$(id -g) "$chosen" "$mp";;
+		# *) >&2 echo "Sorry, no mount type for that."; exit 2
+	esac
+	echo "Drive $chosen mounted to $mp."
+	}
+
+mountandroid() { \
+	chosen=$(echo "$anddrives" | fzf -i --prompt="Which Android device?$fzf_suffix" | cut -d : -f 1)
+	chosen=$(jmtpfs -l | grep -A 2 "$chosen" - | sed -ne '{s/ //g;3p}' -- | cut -d "," -f 1-2 2>/dev/null)
+	getmount "/mnt -maxdepth 3 -type d"
+	jmtpfs "$mp" -device="$chosen"
+	echo "Android device mounted to $mp."
+	}
+
+asktype() { \
+	case $(printf "USB\\nAndroid" | fzf -i --prompt="Mount a USB drive or Android device?$fzf_suffix") in
+		USB) mountusb ;;
+		Android) mountandroid ;;
+	esac
+	}
+
+if [ -z "$usbdrives" ]; then
+    [ -z "$anddrives" ] && echo "No USB drive or Android device detected" && exit
+    mountandroid
+else
+    if [ -z "$anddrives" ]; then
+	mountusb
+    else
+	asktype
+    fi
+fi
