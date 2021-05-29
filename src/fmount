@@ -10,7 +10,7 @@
 
 # OPTIONS
 FSTAB_ENTRIES=${FSTAB_ENTRIES-"/dev/sda"}
-USBFIND_OPTS=${USBFIND_OPTS:-"/mnt /media -maxdepth 3 -type d"}
+USBFIND_OPTS=${USBFIND_OPTS:-"/mnt /media -maxdepth 3 -type d -empty"}
 fzf_suffix=" > "
 
 # Get drives
