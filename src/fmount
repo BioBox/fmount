@@ -9,8 +9,14 @@
 # which can be piped into egrep, but I don't think it's worth the hassle
 
 # OPTIONS
+
+# Devices to be ignored (usually because they're a part of fstab)
 FSTAB_ENTRIES=${FSTAB_ENTRIES-"/dev/sda"}
-USBFIND_OPTS=${USBFIND_OPTS:-"/mnt /media -maxdepth 3 -type d -empty"}
+
+# Options to be passed into find.
+# No need to specify '-empty' because it's added on later
+USBFIND_OPTS=${USBFIND_OPTS:-"/mnt /media -maxdepth 3 -type d"}
+
 fzf_suffix=" > "
 
 # Get drives
@@ -36,7 +42,7 @@ getmount() { \
 mountusb() { \
 	chosen="$(echo "$usbdrives" | fzf -i --prompt="Mount which drive?$fzf_suffix" | awk '{print $1}')"
 	sudo -A mount "$chosen" 2>/dev/null && echo "USB $chosen mounted." && exit 0
-	alreadymounted=$(lsblk -nrpo "name,type,mountpoint" | awk '$2=="part"&&$3!~/\/boot|\/home$|SWAP/&&length($3)>1{printf "-not \\( -path *%s -prune \\)",$3}')
+	alreadymounted=$(lsblk -nrpo "name,type,mountpoint" | awk '$2=="part"&&$3!~/\/boot|\/home$|SWAP/&&length($3)>1{printf "-not \( -path *%s -prune \) ",$3}')
 	getmount "$USBFIND_OPTS $alreadymounted"
 	partitiontype="$(lsblk -no "fstype" "$chosen")"
 	case "$partitiontype" in
