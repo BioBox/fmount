@@ -7,7 +7,7 @@ This is a collection of two bash scripts that mount and unmount USB and Android 
 
 ## Dependencies
 
-[fzf](https://github.com/junegunn/fzf) and [jmtpfs](https://github.com/kiorky/jmtpfs) is required. These should be easily installable by your package manager.
+[fzf](https://github.com/junegunn/fzf) and [jmtpfs](https://github.com/kiorky/jmtpfs) are required. These should be easily installable by your package manager.
 
 ## Installation
 
@@ -33,3 +33,4 @@ Special thanks goes to [Luke Smith](https://lukesmith.xyz/) for coming up with t
 * `simple-mtpfs` doesn't work for me, so it's been replaced with [jmtpfs](https://github.com/kiorky/jmtpfs).
 * This does not use `dmenu` at all; you can run it with any plain-old terminal.
 * Allows for more/easier customization with a couple of env variables.
+* [A bug fix](https://github.com/BioBox/fmount/commit/d04d1430f0ef535a2fb82230cd239f2b92ef6dff)
